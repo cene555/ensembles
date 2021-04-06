@@ -1,4 +1,4 @@
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, balanced_accuracy_score, precision_score, recall_score, roc_auc_score, jaccard_score
 from collections import Counter
 import numpy as np
 import random
@@ -36,11 +36,7 @@ class ClassificationEnsemble:
             predicts1 = []
             for i in range(len(self.models)):
                 predicts1.append(self.models[i].predict(data))
-            predicts2 = []
-            for i in range(len(predicts1[0])):
-                predicts2.append([])
-                for j in range(len(predicts1)):
-                    predicts2[i].append(predicts1[j][i])
+            predicts2 = np.array(predicts1).T
             return self.meta_model.predict(predicts2)
     def predict_proba(self, data):
         if self.ensembling_type == 'bagging':
@@ -55,45 +51,55 @@ class ClassificationEnsemble:
             predicts1 = []
             for i in range(len(self.models)):
                 predicts1.append(self.models[i].predict(data))
-            predicts2 = []
-            for i in range(len(predicts1[0])):
-                predicts2.append([])
-                for j in range(len(predicts1)):
-                    predicts2[i].append(predicts1[j][i])
+            predicts2 = np.array(predicts1).T
             return self.meta_model.predict_proba(predicts2)
-          
-    
-    def fit(self, train_data, labels, eval_data=None, eval_labels=None, metric='accuracy'):
+    def compute_metrics(self, predicts, labels, metrics):
+        if type(metrics) == type(' '):
+            metrics = [metrics]
+        results = {}
+        for metric in metrics:
+            if metric == 'accuracy_score':
+                evaluation = accuracy_score(predicts, labels)
+            elif metric == 'f1_score':
+                evaluation = f1_score(predicts, labels)
+            elif metric == 'balanced_accuracy_score':
+                evaluation = balanced_accuracy_score(predicts, labels)
+            elif metric == 'precision_score':
+                evaluation = precision_score(predicts, labels)
+            elif metric == 'recall_score':
+                evaluation = recall_score(predicts, labels)
+            elif metric == 'roc_auc_score':
+                evaluation = roc_auc_score(predicts, labels)
+            elif metric == 'jaccard_score':
+                evaluation = jaccard_score(predicts, labels)         
+            else:
+                raise NameError('There are only metrics accuracy_score, f1_score, balanced_accuracy_score, precision_score, recall_score, roc_auc_score, jaccard_score')
+            results[metric] = evaluation
+        return results
+    def eval(self, data, labels, metrics, is_print=True):
+        predicts = self.predict(data)
+        evaluations = self.compute_metrics(predicts, labels, metrics)
+        if is_print:
+            for key in evaluations.keys():
+                print(key + ' = ' + str(evaluations[key]))
+        return evaluations
+    def fit(self, train_data, labels, eval_data=None, eval_labels=None, metrics='accuracy'):
         if self.ensembling_type == 'bagging':
             for i in range(len(self.models)):
                 random_state = random.randint(0,100000)
                 bootstrap_X, _a, bootstrap_y, _b =  train_test_split(train_data, labels, test_size=0.3, random_state=random_state)
                 self.models[i].fit(bootstrap_X, bootstrap_y)
-            if type(eval_data) != type(None) and type(eval_labels) != type(None):
-                predicts = self.predict(eval_data)
-                if metric == 'accuracy':
-                    print(accuracy_score(eval_labels, predicts))
-                elif metric == 'f1':
-                    print(f1_score(eval_labels, predicts))
         elif self.ensembling_type == 'stacking':
             predicts1 = []
             random_state = random.randint(0,100000)
-            X1, X2, y1, y2 =  train_test_split(train_data, labels, test_size=0.5, random_state=random_state)
+            X1, X2, y1, y2 =  train_test_split(train_data, labels, test_size=0.3, random_state=random_state)
             for i in range(len(self.models)):
                 self.models[i].fit(X1, y1)
                 predicts1.append(self.models[i].predict(X2))
-            predicts2 = []
-            for i in range(len(predicts1[0])):
-                predicts2.append([])
-                for j in range(len(predicts1)):
-                    predicts2[i].append(predicts1[j][i])
-            self.meta_model = CatBoostClassifier(iterations=10,
+            predicts2 = np.array(predicts1).T
+            self.meta_model = CatBoostClassifier(iterations=50,
                            learning_rate=0.1,
-                           depth=1)
-            self.meta_model.fit(predicts2, y2)
-            if type(eval_data) != type(None) and type(eval_labels) != type(None):
-                predicts = self.predict(eval_data)
-                if metric == 'accuracy':
-                    print(accuracy_score(eval_labels, predicts))
-                elif metric == 'f1':
-                    print(f1_score(eval_labels, predicts))
+                           depth=3)
+            self.meta_model.fit(predicts2, y2, verbose=False)
+        if type(eval_data) != type(None) and type(eval_labels) != type(None):
+            self.eval(eval_data, eval_labels, metrics)
