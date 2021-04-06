@@ -8,6 +8,10 @@ from catboost import CatBoostClassifier
 class ClassificationEnsemble:
     def __init__(self, models, ensembling_type='bagging', bagging_type='majority_vote'):
         self.models = models
+        if ensembling_type not in ['bagging', 'stacking']:
+            raise NameError('There are only bagging, stacking ensembling types.')
+        if bagging_type not in ['majority_vote', 'soft_vote']:
+            raise NameError('There are only bagging, stacking bagging types.')
         self.ensembling_type = ensembling_type
         self.bagging_type=bagging_type
     def predict(self, data):
@@ -83,16 +87,16 @@ class ClassificationEnsemble:
             for key in evaluations.keys():
                 print(key + ' = ' + str(evaluations[key]))
         return evaluations
-    def fit(self, train_data, labels, eval_data=None, eval_labels=None, metrics='accuracy'):
+    def fit(self, train_data, labels, eval_data=None, eval_labels=None, metrics='accuracy', size_of_bootstrap=0.7, size_of_train_for_stacking=0.7):
         if self.ensembling_type == 'bagging':
             for i in range(len(self.models)):
                 random_state = random.randint(0,100000)
-                bootstrap_X, _a, bootstrap_y, _b =  train_test_split(train_data, labels, test_size=0.3, random_state=random_state)
+                bootstrap_X, _a, bootstrap_y, _b =  train_test_split(train_data, labels, test_size=1-size_of_bootstrap, random_state=random_state)
                 self.models[i].fit(bootstrap_X, bootstrap_y)
         elif self.ensembling_type == 'stacking':
             predicts1 = []
             random_state = random.randint(0,100000)
-            X1, X2, y1, y2 =  train_test_split(train_data, labels, test_size=0.3, random_state=random_state)
+            X1, X2, y1, y2 =  train_test_split(train_data, labels, test_size=1-size_of_train_for_stacking, random_state=random_state)
             for i in range(len(self.models)):
                 self.models[i].fit(X1, y1)
                 predicts1.append(self.models[i].predict(X2))
