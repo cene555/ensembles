@@ -3,17 +3,14 @@ from collections import Counter
 import numpy as np
 import random
 from sklearn.model_selection import train_test_split
-from catboost import CatBoostClassifier
+from catboost import CatBoostRegressor
 
 class RegressorEnsemble:
-    def __init__(self, models, ensembling_type='bagging', bagging_type='majority_vote'):
+    def __init__(self, models, ensembling_type='bagging'):
         self.models = models
         if ensembling_type not in ['bagging', 'stacking']:
             raise NameError('There are only bagging, stacking ensembling types.')
-        if bagging_type not in ['majority_vote', 'soft_vote']:
-            raise NameError('There are only bagging, stacking bagging types.')
         self.ensembling_type = ensembling_type
-        self.bagging_type=bagging_type
     def predict(self, data):
         if self.ensembling_type == 'bagging':
             if self.bagging_type == 'majority_vote':
