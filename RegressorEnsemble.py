@@ -13,26 +13,12 @@ class RegressorEnsemble:
         self.ensembling_type = ensembling_type
     def predict(self, data):
         if self.ensembling_type == 'bagging':
-            if self.bagging_type == 'majority_vote':
-                predicts = []
-                for i in range(len(self.models)):
-                    predict = self.models[i].predict(data)
-                    predicts.append(predict)
-                final_predicts = []
-                for i in range(len(predicts[0])):
-                    preds = []
-                    for j in range(len(predicts)):
-                        preds.append(predicts[j][i])
-                    final_predicts.append(Counter(preds).most_common()[0][0])
-                return final_predicts
-            elif self.bagging_type == 'soft_vote':
-                predicts = np.array([])
-                for i in range(len(self.models)):
-                    if i == 0:
-                        predicts = self.models[i].predict_proba(data)
-                    else:
-                        predicts += self.models[i].predict_proba(data)
-                return np.argmax(predicts / len(self.models), axis=1)
+            predicts = np.array([])
+            for i in range(len(self.models)):
+                if i == 0:
+                    predict = np.array(self.models[i].predict(data))
+                else:
+                    predict += np.array(self.models[i].predict(data))
         elif self.ensembling_type == 'stacking':
             predicts1 = []
             for i in range(len(self.models)):
