@@ -25,21 +25,6 @@ class RegressorEnsemble:
                 predicts1.append(self.models[i].predict(data))
             predicts2 = np.array(predicts1).T
             return self.meta_model.predict(predicts2)
-    def predict_proba(self, data):
-        if self.ensembling_type == 'bagging':
-            predicts = np.array([])
-            for i in range(len(self.models)):
-                if i == 0:
-                    predicts = self.models[i].predict_proba(data)
-                else:
-                    predicts += self.models[i].predict_proba(data)
-            return predicts / len(self.models)
-        elif self.ensembling_type == 'stacking':
-            predicts1 = []
-            for i in range(len(self.models)):
-                predicts1.append(self.models[i].predict(data))
-            predicts2 = np.array(predicts1).T
-            return self.meta_model.predict_proba(predicts2)
     def compute_metrics(self, predicts, labels, metrics):
         if type(metrics) == type(' '):
             metrics = [metrics]
