@@ -1,4 +1,4 @@
-from sklearn.metrics import accuracy_score, f1_score, balanced_accuracy_score, precision_score, recall_score, roc_auc_score, jaccard_score
+from sklearn.metrics import explained_variance_score, max_error, mean_squared_error, mean_absolute_error, mean_squared_log_error, median_absolute_error, r2_score
 from collections import Counter
 import numpy as np
 import random
