@@ -1,4 +1,4 @@
-from sklearn.metrics import explained_variance_score, max_error, mean_squared_error, mean_absolute_error, mean_squared_log_error, median_absolute_error, r2_score
+from sklearn.metrics import explained_variance_score, max_error, mean_squared_error, mean_absolute_error, mean_squared_log_error, median_absolute_error, r2_score, mean_poisson_deviance, mean_gamma_deviance
 from collections import Counter
 import numpy as np
 import random
@@ -16,9 +16,10 @@ class RegressorEnsemble:
             predicts = np.array([])
             for i in range(len(self.models)):
                 if i == 0:
-                    predict = np.array(self.models[i].predict(data))
+                    predicts = np.array(self.models[i].predict(data))
                 else:
-                    predict += np.array(self.models[i].predict(data))
+                    predicts += np.array(self.models[i].predict(data))
+            return predicts / len(self.models)
         elif self.ensembling_type == 'stacking':
             predicts1 = []
             for i in range(len(self.models)):
@@ -30,22 +31,26 @@ class RegressorEnsemble:
             metrics = [metrics]
         results = {}
         for metric in metrics:
-            if metric == 'accuracy_score':
-                evaluation = accuracy_score(predicts, labels)
-            elif metric == 'f1_score':
-                evaluation = f1_score(predicts, labels)
-            elif metric == 'balanced_accuracy_score':
-                evaluation = balanced_accuracy_score(predicts, labels)
-            elif metric == 'precision_score':
-                evaluation = precision_score(predicts, labels)
-            elif metric == 'recall_score':
-                evaluation = recall_score(predicts, labels)
-            elif metric == 'roc_auc_score':
-                evaluation = roc_auc_score(predicts, labels)
-            elif metric == 'jaccard_score':
-                evaluation = jaccard_score(predicts, labels)         
+            if metric == 'explained_variance_score':
+                evaluation = explained_variance_score(predicts, labels)
+            elif metric == 'max_error':
+                evaluation = max_error(predicts, labels)
+            elif metric == 'mean_squared_error':
+                evaluation = mean_squared_error(predicts, labels)
+            elif metric == 'mean_absolute_error':
+                evaluation = mean_absolute_error(predicts, labels)
+            elif metric == 'mean_squared_log_error':
+                evaluation = mean_squared_log_error(predicts, labels)
+            elif metric == 'median_absolute_error':
+                evaluation = median_absolute_error(predicts, labels)
+            elif metric == 'r2_score':
+                evaluation = r2_score(predicts, labels)
+            elif metric == 'mean_poisson_deviance':
+                evaluation = mean_poisson_deviance(predicts, labels)      
+            elif metric == 'mean_gamma_deviance':
+                evaluation = mean_gamma_deviance(predicts, labels)               
             else:
-                raise NameError('There are only metrics accuracy_score, f1_score, balanced_accuracy_score, precision_score, recall_score, roc_auc_score, jaccard_score')
+                raise NameError('There are only metrics explained_variance_score, max_error, mean_squared_error, mean_absolute_error, mean_squared_log_error, median_absolute_error, r2_score, mean_poisson_deviance, mean_gamma_deviance')
             results[metric] = evaluation
         return results
     def eval(self, data, labels, metrics, is_print=True):
@@ -55,7 +60,7 @@ class RegressorEnsemble:
             for key in evaluations.keys():
                 print(key + ' = ' + str(evaluations[key]))
         return evaluations
-    def fit(self, train_data, labels, eval_data=None, eval_labels=None, metrics='accuracy', size_of_bootstrap=0.7, size_of_train_for_stacking=0.7):
+    def fit(self, train_data, labels, eval_data=None, eval_labels=None, metrics='mean_squared_error', size_of_bootstrap=0.7, size_of_train_for_stacking=0.7):
         if self.ensembling_type == 'bagging':
             for i in range(len(self.models)):
                 random_state = random.randint(0,100000)
