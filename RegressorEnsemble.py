@@ -69,7 +69,7 @@ class RegressorEnsemble:
                 self.models[i].fit(X1, y1)
                 predicts1.append(self.models[i].predict(X2))
             predicts2 = np.array(predicts1).T
-            self.meta_model = CatBoostClassifier(iterations=50,
+            self.meta_model = CatBoostRegressor(iterations=50,
                            learning_rate=0.1,
                            depth=3)
             self.meta_model.fit(predicts2, y2, verbose=False)
