@@ -39,8 +39,14 @@ class ClassificationEnsemble:
         elif self.ensembling_type == 'stacking':
             predicts1 = []
             for i in range(len(self.models)):
-                predicts1.append(self.models[i].predict(data))
-            predicts2 = np.array(predicts1).T
+                predicts1.append(self.models[i].predict_proba(data))
+            predicts2 = []
+            for i in range(len(data)):
+                preds2 = []
+                for j in range(len(predicts1)):
+                    preds2 += list(predicts1[j][i])
+                predicts2.append(preds2)
+            predicts2 = np.array(predicts2)
             return self.meta_model.predict(predicts2)
     def predict_proba(self, data):
         if self.ensembling_type == 'bagging':
@@ -54,8 +60,14 @@ class ClassificationEnsemble:
         elif self.ensembling_type == 'stacking':
             predicts1 = []
             for i in range(len(self.models)):
-                predicts1.append(self.models[i].predict(data))
-            predicts2 = np.array(predicts1).T
+                predicts1.append(self.models[i].predict_proba(data))
+            predicts2 = []
+            for i in range(len(data)):
+                preds2 = []
+                for j in range(len(predicts1)):
+                    preds2 += list(predicts1[j][i])
+                predicts2.append(preds2)
+            predicts2 = np.array(predicts2)
             return self.meta_model.predict_proba(predicts2)
     def compute_metrics(self, predicts, labels, metrics):
         if type(metrics) == type(' '):
@@ -87,23 +99,48 @@ class ClassificationEnsemble:
             for key in evaluations.keys():
                 print(key + ' = ' + str(evaluations[key]))
         return evaluations
-    def fit(self, train_data, labels, eval_data=None, eval_labels=None, metrics='accuracy', size_of_bootstrap=0.7, size_of_train_for_stacking=0.7):
+    def fit(self, train_data, labels, eval_data=None, eval_labels=None, metrics='accuracy_score', size_of_bootstrap=0.7, size_of_train_for_stacking=0.7):
         if self.ensembling_type == 'bagging':
             for i in range(len(self.models)):
                 random_state = random.randint(0,100000)
                 bootstrap_X, _a, bootstrap_y, _b =  train_test_split(train_data, labels, test_size=1-size_of_bootstrap, random_state=random_state)
-                self.models[i].fit(bootstrap_X, bootstrap_y)
+                self.models[i].fit(bootstrap_X, bootstrap_y, eval_set=(eval_data, eval_labels))
         elif self.ensembling_type == 'stacking':
             predicts1 = []
             random_state = random.randint(0,100000)
             X1, X2, y1, y2 =  train_test_split(train_data, labels, test_size=1-size_of_train_for_stacking, random_state=random_state)
             for i in range(len(self.models)):
-                self.models[i].fit(X1, y1)
-                predicts1.append(self.models[i].predict(X2))
-            predicts2 = np.array(predicts1).T
+
+                if type(CatBoostClassifier()) == type(self.models[i]):
+                    self.models[i].fit(X1, y1, eval_set=(eval_data, eval_labels))
+                else:
+                    self.models[i].fit(X1, y1)
+                predicts1.append(self.models[i].predict_proba(X2))
+            predicts2 = []
+            for i in range(len(X2)):
+                preds2 = []
+                for j in range(len(predicts1)):
+                    preds2 += list(predicts1[j][i])
+                predicts2.append(preds2)
+            predicts2 = np.array(predicts2)
             self.meta_model = CatBoostClassifier(iterations=50,
-                           learning_rate=0.1,
-                           depth=3)
-            self.meta_model.fit(predicts2, y2, verbose=False)
+                              learning_rate=0.1,
+                              depth=3)
+            if type(eval_data) != type(None):
+                val_predicts1 = []
+                for i in range(len(self.models)):
+                    val_predicts1.append(self.models[i].predict_proba(eval_data))
+                val_predicts2 = []
+                for i in range(len(eval_data)):
+                    val_preds2 = []
+                    for j in range(len(val_predicts1)):
+                        val_preds2 += list(val_predicts1[j][i])
+                    val_predicts2.append(val_preds2)
+                val_predicts2 = np.array(val_predicts2)
+                self.meta_model = CatBoostClassifier(iterations=1500,
+                                  eval_metric='Accuracy')
+                self.meta_model.fit(predicts2, y2, eval_set=(val_predicts2, eval_labels))
+            else:   
+                self.meta_model.fit(predicts2, y2,)
         if type(eval_data) != type(None) and type(eval_labels) != type(None):
             self.eval(eval_data, eval_labels, metrics)
